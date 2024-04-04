@@ -8,6 +8,8 @@
 #define FPS 60
 #define GRAVITY CLITERAL(Vector3){ 0.0f, -9.81f, 0.0f }
 
+#define OBJECT_BUONCINESS 0.8f
+
 enum class PhysicsType
 {
     STATIC,
@@ -39,6 +41,8 @@ public:
         m_MotionState = std::make_shared<btDefaultMotionState>(transform);
 
         btRigidBody::btRigidBodyConstructionInfo rbInfo(objectMass, m_MotionState.get(), m_ColliderShape.get(), localInertia);
+        rbInfo.m_restitution = OBJECT_BUONCINESS;
+
         m_Body = std::make_shared<btRigidBody>(rbInfo);
     }
 
@@ -142,7 +146,7 @@ const Color COLORS[25] = {
     MAGENTA,
 };
 
-const int CUBES = 500;
+const int CUBES = 1;
 
 int main(void)
 {
@@ -153,7 +157,7 @@ int main(void)
     DisableCursor();
 
     Camera3D camera;
-    camera.position = { 30.0f, 30.0f, 30.0f };
+    camera.position = { 10.0f, 10.0f, 10.0f };
     camera.target = { 0.0f, 0.0f, 0.0f };
     camera.up = { 0.0f, 1.0f, 0.0f };
     camera.fovy = 70.0f;
@@ -161,7 +165,7 @@ int main(void)
 
     Object ground(
         { 0.0f, 0.0f, 0.0f },
-        { 0.0f, 10.0f * DEG2RAD, 3.0f * DEG2RAD },
+        { 0.0f, 0.0f, 0.0f },
         { 100.0f, 1.0f, 100.0f },
         PhysicsType::STATIC,
         0.0f,
@@ -175,11 +179,13 @@ int main(void)
     physics.AddObject(ground);
 
     for (int i = 0; i < CUBES; ++i) {
-        Vector3 randomPos = {
-            (float)GetRandomValue(-30, 30),
-            (float)GetRandomValue(3, 50),
-            (float)GetRandomValue(-30, 30)
-        };
+        // Vector3 randomPos = {
+        //     (float)GetRandomValue(-30, 30),
+        //     (float)GetRandomValue(3, 50),
+        //     (float)GetRandomValue(-30, 30)
+        // };
+
+        Vector3 randomPos = { 0.0f, 10.0f, 0.0f};
 
         Vector3 randomRot = {
             (float)GetRandomValue(0, 90) * DEG2RAD,
