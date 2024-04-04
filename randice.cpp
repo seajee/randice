@@ -3,7 +3,7 @@
 #include <bullet/btBulletDynamicsCommon.h>
 
 #include <vector>
-#include <iostream>
+#include <memory>
 
 #define FPS 60
 #define GRAVITY CLITERAL(Vector3){ 0.0f, -9.81f, 0.0f }
@@ -19,7 +19,7 @@ class Object
 public:
     Object(Vector3 pos, Vector3 rot, Vector3 size, PhysicsType type, float mass, Color color)
     {
-        m_ColliderShape = new btBoxShape(
+        m_ColliderShape = std::make_shared<btBoxShape>(
                 btVector3(btScalar(size.x/2.0), btScalar(size.y/2.0), btScalar(size.z/2.0)));
         m_Model = LoadModelFromMesh(GenMeshCube(size.x, size.y, size.z));
         m_Color = color;
@@ -36,16 +36,10 @@ public:
         if (type == PhysicsType::DYNAMIC && mass != 0.0f)
             m_ColliderShape->calculateLocalInertia(mass, localInertia);
 
-        btDefaultMotionState* motionState = new btDefaultMotionState(transform);
+        m_MotionState = std::make_shared<btDefaultMotionState>(transform);
 
-        btRigidBody::btRigidBodyConstructionInfo rbInfo(objectMass, motionState, m_ColliderShape, localInertia);
-        m_Body = new btRigidBody(rbInfo);
-    }
-
-    ~Object()
-    {
-        delete m_Body;
-        delete m_ColliderShape;
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(objectMass, m_MotionState.get(), m_ColliderShape.get(), localInertia);
+        m_Body = std::make_shared<btRigidBody>(rbInfo);
     }
 
     void Unload(void)
@@ -88,12 +82,13 @@ public:
     }
 
     btRigidBody* GetRigidBody(void) {
-        return m_Body;
+        return m_Body.get();
     }
 
 private:
-    btRigidBody* m_Body;
-    btCollisionShape* m_ColliderShape;
+    std::shared_ptr<btRigidBody> m_Body;
+    std::shared_ptr<btCollisionShape> m_ColliderShape;
+    std::shared_ptr<btDefaultMotionState> m_MotionState;
     Model m_Model;
     Color m_Color;
 };
@@ -103,21 +98,14 @@ class Physics
 public:
     Physics(Vector3 gravity)
     {
-        m_CollisionConfiguration = new btDefaultCollisionConfiguration();
-        m_Dispatcher = new btCollisionDispatcher(m_CollisionConfiguration);
-        m_OverlappingPairCache = new btDbvtBroadphase();
-        m_Solver = new btSequentialImpulseConstraintSolver;
-        m_DynamicsWorld = new btDiscreteDynamicsWorld(m_Dispatcher, m_OverlappingPairCache, m_Solver, m_CollisionConfiguration);
+        m_CollisionConfiguration = std::make_shared<btDefaultCollisionConfiguration>();
+        m_Dispatcher = std::make_shared<btCollisionDispatcher>(m_CollisionConfiguration.get());
+        m_OverlappingPairCache = std::make_shared<btDbvtBroadphase>();
+        m_Solver = std::make_shared<btSequentialImpulseConstraintSolver>();
+        m_DynamicsWorld = std::make_shared<btDiscreteDynamicsWorld>(
+                m_Dispatcher.get(), m_OverlappingPairCache.get(), m_Solver.get(), m_CollisionConfiguration.get());
 
         m_DynamicsWorld->setGravity(btVector3(gravity.x, gravity.y, gravity.z));
-    }
-
-    ~Physics()
-    {
-        delete m_CollisionConfiguration;
-        delete m_Dispatcher;
-        delete m_OverlappingPairCache;
-        delete m_Solver;
     }
 
     void Step(float time)
@@ -135,11 +123,11 @@ public:
         m_DynamicsWorld->removeRigidBody(object.GetRigidBody());
     }
 private:
-    btDefaultCollisionConfiguration* m_CollisionConfiguration;
-    btCollisionDispatcher* m_Dispatcher;
-    btBroadphaseInterface* m_OverlappingPairCache;
-    btSequentialImpulseConstraintSolver* m_Solver;
-    btDiscreteDynamicsWorld* m_DynamicsWorld;
+    std::shared_ptr<btDefaultCollisionConfiguration> m_CollisionConfiguration;
+    std::shared_ptr<btCollisionDispatcher> m_Dispatcher;
+    std::shared_ptr<btBroadphaseInterface> m_OverlappingPairCache;
+    std::shared_ptr<btSequentialImpulseConstraintSolver> m_Solver;
+    std::shared_ptr<btDiscreteDynamicsWorld> m_DynamicsWorld;
 };
 
 const Color COLORS[25] = {
@@ -154,7 +142,7 @@ const Color COLORS[25] = {
     MAGENTA,
 };
 
-const int CUBES = 694;
+const int CUBES = 500;
 
 int main(void)
 {
@@ -173,14 +161,15 @@ int main(void)
 
     Object ground(
         { 0.0f, 0.0f, 0.0f },
-        { 0.0f, 10.0f * DEG2RAD, 0.0f },
+        { 0.0f, 10.0f * DEG2RAD, 3.0f * DEG2RAD },
         { 100.0f, 1.0f, 100.0f },
         PhysicsType::STATIC,
         0.0f,
         GRAY
     );
 
-    std::vector<Object*> cubes;
+    std::vector<std::shared_ptr<Object>> cubes;
+    Vector3 cubeSize = { 2.0f, 2.0f, 2.0f };
 
     Physics physics(GRAVITY);
     physics.AddObject(ground);
@@ -200,16 +189,17 @@ int main(void)
 
         Color randomColor = COLORS[GetRandomValue(0, 24)];
 
-        Object* cube = new Object(
+        std::shared_ptr<Object> cube = std::make_shared<Object>(
             randomPos,
             randomRot,
-            { 2.0f, 2.0f, 2.0f },
+            cubeSize,
             PhysicsType::DYNAMIC,
             1.0f,
             randomColor
         );
 
         cubes.push_back(cube);
+
         physics.AddObject(*cube);
     }
 
@@ -221,9 +211,12 @@ int main(void)
 
         BeginDrawing();
             ClearBackground(RAYWHITE);
+            DrawFPS(0, 0);
             BeginMode3D(camera);
+                DrawGrid(1000, 10);
+
                 ground.Render();
-                for (Object* cube : cubes) {
+                for (auto cube : cubes) {
                     cube->Render();
                 }
             EndMode3D();
@@ -235,8 +228,6 @@ int main(void)
     for (int i = 0; i < CUBES; ++i) {
         physics.RemoveObject(*cubes[i]);
         cubes[i]->Unload();
-        delete cubes[i];
-        cubes[i] = NULL;
     }
 
     CloseWindow();
