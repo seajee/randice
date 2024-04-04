@@ -7,7 +7,7 @@
 
 #define FPS 60
 #define GRAVITY CLITERAL(Vector3){ 0.0f, -9.81f, 0.0f }
-
+#define CUBES 1
 #define OBJECT_BUONCINESS 0.8f
 
 enum class PhysicsType
@@ -146,16 +146,16 @@ const Color COLORS[25] = {
     MAGENTA,
 };
 
-const int CUBES = 1;
-
 int main(void)
 {
+    // Initialize raylib
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "Randice - Virtual Dice thrower");
     SetTargetFPS(FPS);
     DisableCursor();
 
+    // Setup objects
     Camera3D camera;
     camera.position = { 10.0f, 10.0f, 10.0f };
     camera.target = { 0.0f, 0.0f, 0.0f };
@@ -185,12 +185,12 @@ int main(void)
         //     (float)GetRandomValue(-30, 30)
         // };
 
-        Vector3 randomPos = { 0.0f, 10.0f, 0.0f};
+        Vector3 randomPos = { 0.0f, 10.0f, 0.0f };
 
         Vector3 randomRot = {
-            (float)GetRandomValue(0, 90) * DEG2RAD,
-            (float)GetRandomValue(0, 90) * DEG2RAD,
-            (float)GetRandomValue(0, 90) * DEG2RAD
+            (float)GetRandomValue(0, 360) * DEG2RAD,
+            (float)GetRandomValue(0, 360) * DEG2RAD,
+            (float)GetRandomValue(0, 360) * DEG2RAD
         };
 
         Color randomColor = COLORS[GetRandomValue(0, 24)];
@@ -211,31 +211,37 @@ int main(void)
 
     float dt = 1.0f;
 
+    // Main loop
     while (!WindowShouldClose()) {
+        // Physics
         UpdateCamera(&camera, CAMERA_THIRD_PERSON);
         physics.Step(1.0f / FPS * dt * 100.0f);
 
+        // Rendering
         BeginDrawing();
             ClearBackground(RAYWHITE);
-            DrawFPS(0, 0);
+
             BeginMode3D(camera);
                 DrawGrid(1000, 10);
-
                 ground.Render();
                 for (auto cube : cubes) {
                     cube->Render();
                 }
             EndMode3D();
+
+            DrawFPS(10, 10);
         EndDrawing();
 
         dt = GetFrameTime();
     }
 
+    // Unload objects
     for (int i = 0; i < CUBES; ++i) {
         physics.RemoveObject(*cubes[i]);
         cubes[i]->Unload();
     }
 
+    // Close raylib window
     CloseWindow();
 
     return 0;
