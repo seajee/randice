@@ -1,15 +1,19 @@
 CXX=g++
-CXXFLAGS=-Wall -Wextra
-LDFLAGS=`pkg-config --libs --cflags raylib bullet`
+CXXFLAGS=-Wall -Wextra `pkg-config -cflags raylib bullet`
+LDFLAGS=`pkg-config --libs raylib bullet`
 
-all: randice randice_debug
+all: randice
 
-randice: randice.cpp
-	$(CXX) $(CXXFLAGS) -o randice randice.cpp $(LDFLAGS)
+randice: main.o randice.o
+	$(CXX) -o randice main.o randice.o $(LDFLAGS)
 
-randice_debug: randice.cpp
-	$(CXX) $(CXXFLAGS) -o randice_debug randice.cpp $(LDFLAGS) -ggdb
+main.o: main.cpp randice.o
+	$(CXX) $(CXXFLAGS) -c -o main.o main.cpp
+
+randice.o: randice.cpp
+	$(CXX) $(CXXFLAGS) -c -o randice.o randice.cpp
 
 clean:
 	rm -rf randice
-	rm -rf randice_debug
+	rm -rf main.o
+	rm -rf randice.o
